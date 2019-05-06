@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "tech.energyit.trading.api";
+option java_outer_classname = "TradeRpc";
+
+package trading;
+
+service TradeEnquiryService {
+
+    rpc GetTrades (TradeRequest) returns (TradeResponse);
+}
+
+message TradeRequest {
+    int64 timestamp_from = 1;
+    int64 timestamp_to = 2;
+}
+
+message TradeResponse {
+    repeated TradeData trades = 1;
+}
+
+message TradeData {
+    int64 id = 2;
+    int64 external_id = 3;
+    int64 revision = 4;
+    int64 contract_id = 7;
+    int32 quantity = 8;
+    Price price = 9;
+}
+
+message Price {
+    int64 cent = 1;
+    int32 shift = 2;
+}
