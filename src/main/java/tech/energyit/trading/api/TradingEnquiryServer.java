@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 public class TradingEnquiryServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(TradingEnquiryServer.class);
+    private static final double[] LATENCY_BUCKETS = { 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20 };
 
     private Server server;
     private HTTPServer monitoringServer;
@@ -52,6 +53,7 @@ public class TradingEnquiryServer {
                 .start();
         LOG.info("Server started, listening on {}", port);
         Runtime.getRuntime().addShutdownHook(new Thread() {
+
             @Override
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
@@ -65,16 +67,18 @@ public class TradingEnquiryServer {
 
     private ServerServiceDefinition createService() {
         MonitoringServerInterceptor monitoringInterceptor =
-                MonitoringServerInterceptor.create(Configuration.allMetrics().withLatencyBuckets(new double[]{0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5}));
+                MonitoringServerInterceptor.create(Configuration
+                        .allMetrics()
+                        .withLatencyBuckets(LATENCY_BUCKETS));
         return ServerInterceptors.intercept(new TradeEnquiryService(), monitoringInterceptor);
     }
 
     private void setupMonitoringAndExporters() throws IOException {
-        // Register all the gRPC views and enable stats
-        RpcViews.registerAllGrpcViews();
+                // Register all the gRPC views and enable stats
+                RpcViews.registerAllGrpcViews();
 
-        // Register the Prometheus exporter
-        PrometheusStatsCollector.createAndRegister();
+                // Register the Prometheus exporter
+                PrometheusStatsCollector.createAndRegister();
 
         // Run the server as a daemon on address "localhost:8888"
         monitoringServer = new HTTPServer("localhost", 8888, true);

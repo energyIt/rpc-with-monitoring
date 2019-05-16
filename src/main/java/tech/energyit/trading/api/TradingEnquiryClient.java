@@ -68,7 +68,7 @@ public class TradingEnquiryClient {
         TradeResponse response;
         try {
             response = blockingStub.getTrades(request);
-            LOG.info("trades received : \n{}", response);
+            LOG.trace("trades received : \n{}", response);
         } catch (StatusRuntimeException e) {
             LOG.error("RPC failed: {}", e.getStatus());
         }
@@ -82,7 +82,7 @@ public class TradingEnquiryClient {
         TradeResponse response;
         try {
             response = blockingStub.cancelTrades(request);
-            LOG.info("trades canceled : \n{}", response);
+            LOG.trace("trades canceled : \n{}", response);
         } catch (StatusRuntimeException e) {
             LOG.error("RPC failed: {}", e.getStatus());
         }
@@ -94,9 +94,12 @@ public class TradingEnquiryClient {
     public static void main(String[] args) throws Exception {
         TradingEnquiryClient client = new TradingEnquiryClient("localhost", 50051);
         try {
-            client.getTrades(123456L, 1234999L);
-            client.getTrades(123456L, 1234999L);
-            client.cancelTrades(123L, 1234L, 123456L);
+            for (int i = 0; i < 1000; i++) {
+                client.getTrades(123456L+i, 1234999L+i);
+                client.getTrades(123456L+i, 1234999L+i);
+                client.cancelTrades(123L+i, 1234L+i, 123456L+i);
+            }
+
         } finally {
             client.shutdown();
         }
