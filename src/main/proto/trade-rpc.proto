@@ -9,6 +9,13 @@ package trading;
 service TradeEnquiryService {
 
     rpc GetTrades (TradeRequest) returns (TradeResponse);
+
+    rpc CancelTrades (CancelTradeRequest) returns (TradeResponse);
+}
+
+
+message CancelTradeRequest {
+   repeated int64 trade_id = 1;
 }
 
 message TradeRequest {
@@ -17,7 +24,7 @@ message TradeRequest {
 }
 
 message TradeResponse {
-    repeated TradeData trades = 1;
+    repeated TradeData trade = 1;
 }
 
 message TradeData {
