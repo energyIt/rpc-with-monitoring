@@ -23,6 +23,9 @@ import com.google.common.primitives.Longs;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import io.prometheus.client.exporter.HTTPServer;
+import me.dinowernli.grpc.prometheus.Configuration;
+import me.dinowernli.grpc.prometheus.MonitoringClientInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,19 +43,13 @@ public class TradingEnquiryClient {
      * Construct client connecting to HelloWorld server at {@code host:port}.
      */
     public TradingEnquiryClient(String host, int port) {
-        this(ManagedChannelBuilder.forAddress(host, port)
+        this.channel = ManagedChannelBuilder.forAddress(host, port)
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
                 .usePlaintext()
-                .build());
-    }
-
-    /**
-     * Construct client for accessing HelloWorld server using the existing channel.
-     */
-    TradingEnquiryClient(ManagedChannel channel) {
-        this.channel = channel;
-        blockingStub = TradeEnquiryServiceGrpc.newBlockingStub(channel);
+                .intercept(MonitoringClientInterceptor.create(Configuration.allMetrics()))
+                .build();
+        this.blockingStub = TradeEnquiryServiceGrpc.newBlockingStub(channel);
     }
 
     public void shutdown() throws InterruptedException {
@@ -87,21 +84,24 @@ public class TradingEnquiryClient {
             LOG.error("RPC failed: {}", e.getStatus());
         }
     }
+
     /**
      * Greet server. If provided, the first element of {@code args} is the name to use in the
      * greeting.
      */
     public static void main(String[] args) throws Exception {
         TradingEnquiryClient client = new TradingEnquiryClient("localhost", 50051);
+        HTTPServer monitoringServer = new HTTPServer("localhost", 8889, true);
         try {
             for (int i = 0; i < 1000; i++) {
-                client.getTrades(123456L+i, 1234999L+i);
-                client.getTrades(123456L+i, 1234999L+i);
-                client.cancelTrades(123L+i, 1234L+i, 123456L+i);
+                client.getTrades(123456L + i, 1234999L + i);
+                client.getTrades(123456L + i, 1234999L + i);
+                client.cancelTrades(123L + i, 1234L + i, 123456L + i);
             }
-
+            System.in.read();
         } finally {
             client.shutdown();
+            monitoringServer.stop();
         }
     }
 }
