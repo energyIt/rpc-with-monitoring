@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.primitives.Longs;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.NameResolver;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.exporter.HTTPServer;
 import me.dinowernli.grpc.prometheus.Configuration;
@@ -42,12 +43,16 @@ public class TradingEnquiryClient {
     /**
      * Construct client connecting to HelloWorld server at {@code host:port}.
      */
-    public TradingEnquiryClient(String host, int port) {
-        this.channel = ManagedChannelBuilder.forAddress(host, port)
+    public TradingEnquiryClient(String... hostPorts) {
+        this.channel = ManagedChannelBuilder.forTarget(hostPorts[0])
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
+                .nameResolverFactory(new FixedAddressNameResolver.FixedAddressNameResolverProvider(Arrays.asList(hostPorts)))
+                .defaultLoadBalancingPolicy("round_robin")//("pick_first")//("round_robin")
                 .usePlaintext()
-                .intercept(MonitoringClientInterceptor.create(Configuration.allMetrics()))
+                .intercept(MonitoringClientInterceptor.create(Configuration
+                        .allMetrics()
+                        .withLatencyBuckets(TradingEnquiryServer.LATENCY_BUCKETS)))
                 .build();
         this.blockingStub = TradeEnquiryServiceGrpc.newBlockingStub(channel);
     }
@@ -90,10 +95,10 @@ public class TradingEnquiryClient {
      * greeting.
      */
     public static void main(String[] args) throws Exception {
-        TradingEnquiryClient client = new TradingEnquiryClient("localhost", 50051);
-        HTTPServer monitoringServer = new HTTPServer("localhost", 8889, true);
+        TradingEnquiryClient client = new TradingEnquiryClient("localhost:50051", "localhost:50052");
+        HTTPServer monitoringServer = new HTTPServer("localhost", 9889, true);
         try {
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 5; i++) {
                 client.getTrades(123456L + i, 1234999L + i);
                 client.getTrades(123456L + i, 1234999L + i);
                 client.cancelTrades(123L + i, 1234L + i, 123456L + i);

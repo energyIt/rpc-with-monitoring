@@ -37,21 +37,22 @@ import org.slf4j.LoggerFactory;
 public class TradingEnquiryServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(TradingEnquiryServer.class);
-    private static final double[] LATENCY_BUCKETS = { 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20 };
+    static final double[] LATENCY_BUCKETS = {0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20};
 
     private Server server;
     private HTTPServer monitoringServer;
 
-    private void start() throws IOException, InterruptedException {
-        setupMonitoringAndExporters();
+    /**
+     * @param port - The port on which the server should run
+     */
+    private void start(int port, int monitoringPort) throws IOException, InterruptedException {
+        setupMonitoringAndExporters(monitoringPort);
 
-        /* The port on which the server should run */
-        int port = 50051;
         server = ServerBuilder.forPort(port)
                 .addService(createService())
                 .build()
                 .start();
-        LOG.info("Server started, listening on {}", port);
+        LOG.info("Server started, listening on {}, monitoring on {}", port, monitoringPort);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
             System.err.println("*** shutting down gRPC server since JVM is shutting down");
@@ -69,15 +70,19 @@ public class TradingEnquiryServer {
         return ServerInterceptors.intercept(new TradeEnquiryService(), monitoringInterceptor);
     }
 
-    private void setupMonitoringAndExporters() throws IOException {
-                // Register all the gRPC views and enable stats
-                RpcViews.registerAllGrpcViews();
+    /**
+     * @param monitoringPort - prometheus http server port
+     * @throws IOException
+     */
+    private void setupMonitoringAndExporters(int monitoringPort) throws IOException {
+        // Register all the gRPC views and enable stats
+        RpcViews.registerAllGrpcViews();
 
-                // Register the Prometheus exporter
-                PrometheusStatsCollector.createAndRegister();
+        // Register the Prometheus exporter
+        PrometheusStatsCollector.createAndRegister();
 
         // Run the server as a daemon on address "localhost:8888"
-        monitoringServer = new HTTPServer("localhost", 8888, true);
+        monitoringServer = new HTTPServer("localhost", monitoringPort, true);
     }
 
     private void stop() {
@@ -104,7 +109,7 @@ public class TradingEnquiryServer {
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         final TradingEnquiryServer server = new TradingEnquiryServer();
-        server.start();
+        server.start(Integer.valueOf(args[0]), Integer.valueOf(args[1]));
         server.blockUntilShutdown();
     }
 }
